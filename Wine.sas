@@ -1,12 +1,12 @@
 
-proc import datafile="&p_git/wineQualityTrain.csv" out=GIT.Wine dbms=csv;
+proc import datafile="&p_data/wineQualityTrain.csv" out=DATA.Wine dbms=csv;
 run;
 
 
 %let resp = quality;
 
 data red(drop = type) white(drop = type);
-  set GIT.Wine;
+  set DATA.Wine;
   if type = "Red" then output red;
   if type = "White" then output white;
 run;
