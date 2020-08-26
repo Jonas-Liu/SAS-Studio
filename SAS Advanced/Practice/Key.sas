@@ -67,17 +67,18 @@ data lab2;
   array new[3] cm1 - cm3;
   
   drop _:;
-  input in1 in2 in3;
+  input in1 in2 in3 height;
   do _i = 1 to 3;
     new[_i] = trans(old[_i]);
     if missing(new[_i]) then new[_i] = 0;
   end;
+  newheight = trans(height);
   
   datalines;
-  1 1.2 2
-  2 . 3
-  . 3.3 4
-  4 5.2 .
+  1 1.2 2 12
+  2 . 3 4
+  . 3.3 4 .
+  4 5.2 . 7
   ;
 run;
 
@@ -86,10 +87,11 @@ run;
 %let num = 1.25;
 %macro incre;
 
-/* This is a comment */
+/* %put: This is a comment */
 
   %do %until (&num ge 2);
     %let num = %sysevalf(&num + 0.25);
+    %put &num;
   %end;
 %mend incre;
 
@@ -113,4 +115,32 @@ quit;
 
 %put &avgw1, &avgw2;
 %put &type;
-  
+
+
+/* lab 5 */
+
+data act01;
+  set sashelp.pricedata;
+  array p[*] price:;
+  do _i = 1 to dim(p);
+    p[_i] = p[_i]*1.1;
+  end;
+run;
+
+/* lab 6 */
+
+data _null_;
+  set sashelp.cars(obs = 1);
+  call symputx('CarMaker', Make);
+run;
+%put &CarMaker;
+
+
+/* lab 7 */
+
+proc sql;
+  create table work.sql01 as
+    select make, avg(mpg_city) as avgcitympg
+      from sashelp.cars
+      group by make;
+quit;
