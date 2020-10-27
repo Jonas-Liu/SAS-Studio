@@ -33,7 +33,9 @@ proc print data = bad_data;run;
 %put outter Mv = &mv;
 
 
+proc sql;
 
+select avg(city) into: cityavg from work.city where region = "ARM" group by region;quit; %put &cityacg
 /* Practice Lab Tasks */
 
 data temp;
@@ -44,10 +46,56 @@ run;
 
 proc sql;
   select a.type, a.make, avg(b.MSRP)
-    from sashelp.cars as a left join work.temp as b
+    from sashelp.cars as a inner join work.temp as b
       on a.type = b.type and a.make = b.make
     group by a.type, a.make;
 quit;
+
+
+
+
+
+
+
+
+
+
+
+
+proc fcmp outlib = work.function.lab;
+  function trans(in);
+    cm = in*2.54;
+  return(cm);
+  endsub;
+run;
+
+options cmplib = work.function;
+
+data lab2;
+  set work.tmp2;
+  newheight = trans(height);
+  
+  array New[3] CM1 - CM3;
+  array LS[3] IN1 - IN3;
+  array num[*] _numeric_;
+  
+  do i = 1 to 3;
+    New[i] = trans(LS[i]);
+  end;
+  
+  
+  do i = 1 to dim(num);
+    if num[i] = . then num[i] = 0;
+  end;
+  
+run;
+
+
+
+
+
+
+
 
 
 
@@ -117,6 +165,10 @@ quit;
 %put &type;
 
 
+
+
+
+
 /* lab 5 */
 
 data act01;
@@ -126,6 +178,7 @@ data act01;
     p[_i] = p[_i]*1.1;
   end;
 run;
+
 
 /* lab 6 */
 

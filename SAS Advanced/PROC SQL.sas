@@ -5,7 +5,6 @@ b = 'c';
 c = 1;
 run;
 
-
 proc sql;
   insert into work.test
     set a = 'a',
