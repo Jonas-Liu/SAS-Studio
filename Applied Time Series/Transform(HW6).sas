@@ -1,4 +1,4 @@
-/* Author: Zheng Liu */
+/* Author: valueheng Liu */
 /* Purpose: This program is to get the answer for the homework 6*/
 
 x "cd D:/Repository/SAS-Studio/Applied Time Series/";
@@ -8,44 +8,61 @@ filename rawdata 'Data';
 
 /* Rawdata names */
 %let liquor = US liquor sales;
-  %let v_liquor = month $ year z;
+  %let v_liquor = month : $3. year value;
+  %let d_liquor = input(cat('01',month,year), date9.);
   
 %let gas = personal consuption of gasoline;
-  %let v_gas = qt year z;
+  %let v_gas = qtr year value;
+  %let d_gas = yyq(year, qtr);
   
 %macro fit(d_name);
   data &d_name;
+    format time date9.;
     infile rawdata("&&&d_name...txt");
     input &&&v_&d_name;
+    time = &&&d_&d_name;
   run;
   
-  title "Diagnostic of &d_name";
-  proc arima data = &d_name;
-    identify var = z;
-    run;
-  quit;
+  title "Plot of &&&d_name";
+  proc sgplot data = &d_name;
+    series x = time y = value;
+  run;
   title;
+  
+  proc transreg data = &d_name;
+    model boxcox(value) = identity(time);
+  run;
 %mend fit;
 
 
 /* Liquor dataset analysis */
+
 %fit(liquor);
+/* Data transformation */
+data liquor;
+  set liquor;
+  z = 1/sqrt(value);
+run;
 
 proc arima data = liquor;
-  identify var = z(1,12); run;
-  estimate q = 1; run;
-  estimate q = (1)(12); run;
+  identify var = z; run;
+
+
 quit;
 
 
+
 /* Gas dataset analysis */
+
 %fit(gas);
+/* Data transformation */
+data gas;
+  set gas;
+  z = 1/sqrt(value);
+run;
 
 proc arima data = gas;
-  identify var = z(1); run;
-  estimate p = 1; run;
-  estimate p = (1)(4); run;
+  identify var = z; run;
 
-  identify var = z(1,4); run;
-  estimate q = (1)(4); run;
+
 quit;
