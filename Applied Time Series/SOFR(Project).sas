@@ -3,23 +3,17 @@
 /* Purpose: This program is to use the ARIMA model to analyze SOFR data */
 
 
-/* 
- About the SOFR:
- The Secured Overnight Financing Rate (SOFR) is a broad measure of the cost
- of borrowing cash overnight collateralized by Treasury securities. The SOFR 
- includes all trades in the Broad General Collateral Rate plus bilateral Treasury
- repurchase agreement (repo) transactions cleared through the Delivery-versus-Payment (DVP)
- service offered by the Fixed Income Clearing Corporation (FICC), which is filtered 
- to remove a portion of transactions considered "specials". 
-*/
-
-/* Label: Conclusion */
-
-/* Date: 11/01/2020 */
-/* Author: Zheng Liu, Huixuan Bao */
-/* Final Conclusion */
-
-
+*---------------------------------------------------------------------*
+| About the SOFR:                                                     |
+| The Secured Overnight Financing Rate (SOFR) is a broad measure of   |
+| the cost of borrowing cash overnight collateralized by Treasury     |
+| securities. The SOFR includes all trades in the Broad General       |
+| Collateral Rate plus bilateral Treasury repurchase agreement (repo) |
+| transactions cleared through the Delivery-versus-Payment (DVP)      |
+| service offered by the Fixed Income Clearing Corporation (FICC),    |
+| which is filtered to remove a portion of transactions considered    |
+| "specials".                                                         |
+*---------------------------------------------------------------------*;
 
 /* Label: Import Data */
 
@@ -64,87 +58,89 @@ proc sort data = sofr;
 run;
 
 /* Train-Test Split */
-data train test;
+data sofr;
   set sofr nobs = nobs;
-  if _n_ lt &ratio*nobs then output train;
-  else output test;
+  if _n_ lt &ratio*nobs then train = rate; * Take logarithm to prevent negative value;
+  else test = rate;
+  covid = date ge "16MAR2020"d;
+  crunch = date eq "17SEP2019"d;
+  ltrain = log(train);
 run;
 
-%put ____________________________________________________________Analyses start here: (Data: Train/Test);
-
-/* Set the working dataset name */
-%let n_data = train;
+%put ____________________________________________________________Analyses start here:;
 
 /* Label: Exploratory Data Analysis */
 
 /* Univariate analysis on the SOFR */
 title "Univariate Analysis";
-proc univariate data = &n_data;
+proc univariate data = sofr;
   histogram Rate / normal kernel;
   inset mean std normal / position = ne;
 run;
 title;
 
+title "Time Series Graph";
+proc sgplot data = sofr;
+  series x = date y = rate;
+run;
+title;
 
-/* ods powerpoint file = "C:\Users\jonas\Desktop\x.ppt" style = sapphire; */
-/* ods powerpoint close; */
 
 /* Label: Trend and Correlation Analysis */
 
 /* Diagnostics and stationary test */
 
 title "Diagnostics for SOFR";
-proc arima data = &n_data;
+proc arima data = sofr;
   title2 "Original Data";
-  identify var = Rate stationarity = (adf = 0); run;
+  identify var = train stationarity = (adf = 0); run;
 quit;
 
-proc arima data = &n_data;
+proc arima data = sofr;
   title2 "Regular Differencing";
-  identify var = Rate(1); run;
+  identify var = train(1); run;
 quit;
 
-proc arima data = &n_data;
-  title2 "Seasonal Differencing (lag 21)";
-  identify var = Rate(1,21); run;
+proc arima data = sofr;
+  title2 "Seasonal Differencing (lag 5)";
+  identify var = train(1,5); run;
 quit;
 title;
 
 /* Label: Transformation */
 
-/* Box-Cox test */
 
-proc transreg data = &n_data;
-  model boxcox(Rate) = identity(Date);
+/* Box-Cox test */
+proc transreg data = sofr;
+  model boxcox(rate) = identity(Date);
 run;
 
 
 /* Label: Model Fitting */
+/* ods powerpoint file = 'C:/Users/jonas/Desktop/output.ppt' style = sapphire; */
 
 /* Model fitting */
-proc arima data = &n_data;
-  title2 "Regular Differencing";
-  identify var = Rate(1,21); run;
-  estimate q = (1)(21); run;
-  forecast lead = 129 out = f_sofr; run;
+proc arima data = sofr;
+  title "Intervention Analysis";
+  identify var = train(1) crosscorr = (covid(1) crunch);
+  estimate q = (1,8) input = (covid crunch) method = ml; run;
+  forecast lead = 130 out = f_sofr_1; run;
+  
+  identify var = ltrain(1) crosscorr = (covid(1) crunch);
+  estimate q = (1,3,5,10) p = (17,18,19,24) input = (covid crunch) method = ml;run;
+  forecast lead = 130 out = f_sofr_2; run;
 quit;
+title;
+
 
 
 /* Label: Backtesting */
 
 
 data r_sofr;
-  set f_sofr(keep = rate forecast l95 u95 where = (missing(rate)));
-  set test;
-run;
-
-data f_sofr;
-  set f_sofr;
-  n = _n_;
-run;
-proc sgplot data = f_sofr;
-  series x = n y = rate;
-  series x = n y = forecast;
+  set f_sofr_1(keep = train forecast l95 u95 where = (missing(train)));
+  set sofr(keep = train test date where = (missing(train)));
+  rename test = rate;
 run;
 
 title "Forecasting";
@@ -152,9 +148,44 @@ proc sgplot data = r_sofr;
   band x = date upper = u95 lower = l95 /
     transparency = 0.5 legendlabel = '95% Confidence Interval';
   series x = date y = rate /
-    lineattrs = (color = 'Blue' thickness = 1);
+    lineattrs = (color = 'Blue' thickness = 1) legendlabel = 'Actual';
   series x = date y = forecast /
-    lineattrs = (color = 'LightRed' thickness = 1);
+    lineattrs = (color = 'LightRed' thickness = 1) legendlabel = 'Forecasting';
 run;
 title;
 
+data r_sofr;
+  set f_sofr_2(keep = ltrain forecast l95 u95 where = (missing(ltrain)));
+  set sofr(keep = train test date where = (missing(train)));
+  rename test = rate;
+  
+  forecast = exp(forecast);
+  l95 = exp (l95);
+  u95 = exp(u95);
+run;
+
+title "Forecasting";
+proc sgplot data = r_sofr;
+  band x = date upper = u95 lower = l95 /
+    transparency = 0.5 legendlabel = '95% Confidence Interval';
+  series x = date y = rate /
+    lineattrs = (color = 'Blue' thickness = 1) legendlabel = 'Actual';
+  series x = date y = forecast /
+    lineattrs = (color = 'LightRed' thickness = 1) legendlabel = 'Forecasting';
+run;
+title;
+
+/* ods powerpoint close; */
+
+/* Label: Conclusion */
+
+/* Date: 11/05/2020 */
+/* Author: Zheng Liu, Huixuan Bao */
+/* Final Conclusion */
+
+*---------------------------------------------------------------------*
+| 1. Logarithm transformation solves the problem of negative interest |
+|    rates but may change the impact on interventions.                |
+| 2. Special events prediction.                                       |
+| 3. Further study: GARCH Model or SDE (Vasicek or CIR Model).        |
+*---------------------------------------------------------------------*;
