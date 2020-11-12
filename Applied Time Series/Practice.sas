@@ -98,4 +98,30 @@ run;
 
 proc arima data = beer;
   identify var = z; run;
+quit;
 
+/* Ozone dataset practice */
+data ozone;
+  set ozone;
+  date = intnx('month','31DEC1954'd,_n_);
+  format date monyy.;
+run;
+
+proc arima data = ozone;
+  identify var = z(12); run;
+  estimate q = (1)(12); run;
+quit;
+
+
+
+%include "D:/Repository/SAS-Studio/Applied Time Series/Createdata.sas";
+
+/* leading sales practice */
+proc arima data = lsale;
+/*   identify var = x stationarity = (adf = 0); */
+  identify var = x(1); run;
+  estimate q = 1; run;
+  identify var = y(1) crosscorr = (x(1)); run;
+  estimate q = 1; run;
+  estimate q = 1 input = (3$(0)/(1)x); run;
+quit;
