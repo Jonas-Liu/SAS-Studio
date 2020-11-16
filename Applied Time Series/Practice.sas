@@ -123,5 +123,5 @@ proc arima data = lsale;
   estimate q = 1; run;
   identify var = y(1) crosscorr = (x(1)); run;
   estimate q = 1; run;
-  estimate q = 1 input = (3$(0)/(1)x); run;
+  estimate q = 1 input = (3$(2)/(1)x); run;
 quit;
