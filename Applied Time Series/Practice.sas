@@ -125,3 +125,50 @@ proc arima data = lsale;
   estimate q = 1; run;
   estimate q = 1 input = (3$(2)/(1)x); run;
 quit;
+
+
+
+
+
+
+/* Final Exam */
+
+x "cd D:/Repository/SAS-Studio/Applied Time Series/";
+
+/* Read in dataset */
+filename rawdata 'Data';
+
+data hotel;
+  infile rawdata("monthly hotel room averages.txt");
+  input month room;
+run;
+
+/* Time series plot */
+title "Monthly Hotel Room Averages";
+proc sgplot data = hotel;
+  series x = month y = room;
+  xaxis label = 'Month' grid;
+  yaxis label = 'Room' grid;
+run;
+title;
+
+/* Box-Cox test */
+proc transreg data = hotel;
+    model boxcox(room) = identity(month);
+run;
+
+/* Reciprocal */
+data hotel;
+  set hotel;
+  rec_room = 1/room;
+run;
+
+proc arima data = hotel;
+  identify var = rec_room stationarity = (adf = 0); run;
+  
+  identify var = rec_room(12);
+  estimate p = (1,6,12); *-2774.31;
+  estimate p = (1,3,6,10,12,13); *-2792.16;
+  run;  
+quit;
+
